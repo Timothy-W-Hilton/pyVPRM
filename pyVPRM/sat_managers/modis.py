@@ -8,6 +8,7 @@ import zipfile
 import glob
 from pyproj import Transformer
 import geopandas as gpd
+from pandas import Timestamp
 from pyVPRM.lib import downmodis
 import math 
 from pyproj import Proj
@@ -29,6 +30,31 @@ import xarray as xr
 from datetime import datetime, timedelta, date
 import numpy as np 
 from pyVPRM.sat_managers.base_manager import earthdata
+import cftime
+
+
+def cftime_to_datetime(ts_cftime: cftime.DatetimeGregorian) -> datetime:
+    """convert a cftime timestamp to a datetime timestamp
+
+    convert a cftime.DatetimeGregorian timestamp to a datetime.datetime
+    timestamp
+
+    Parameters
+    ----------
+    ts_cftime : cftime.DatetimeGregorian
+        the timestamp to convert
+
+    Returns
+    -------
+    datetime.datetime
+        a datetime.datetime object
+
+    Examples
+    --------
+    FIXME: Add docs.
+
+    """
+    return datetime.strptime(ts_cftime.strftime(), ts_cftime.format)
 
 
 class modis(earthdata):
@@ -54,11 +80,11 @@ class modis(earthdata):
         if self.bands is not None:
             self.bands = [i for i in list(self.sat_img.keys()) if 'sur_refl_b' in i]
         
-    def start_date(self):
-        return parser.parse(self.sat_img.attrs['GRANULEBEGINNINGDATETIME'].split(',')[0]).replace(tzinfo=None)
-        
-    def stop_date(self):
-        return parser.parse(self.sat_img.attrs['GRANULEENDINGDATETIME'].split(',')[-1]).replace(tzinfo=None)
+    def start_date(self) -> datetime:
+        return Timestamp(self.sat_img["time"].values[0]).to_pydatetime()
+
+    def stop_date(self) -> datetime:
+        return Timestamp(self.sat_img["time"].values[-1]).to_pydatetime()
 
     def set_band_names(self):
         print('Trying to set reflectance bands assuming standard naming for MODIS')
@@ -176,7 +202,10 @@ class modis(earthdata):
         for key in self.keys:
             self.sat_img[key] = self.sat_img[key] * self.sat_img[key].scale_factor
         self.meta_data = self.sat_img.attrs
-        self.sat_img = self.sat_img.assign_coords({'time': self.get_recording_time()})
+        self.sat_img = self.sat_img.assign_coords(
+            {"time": [cftime_to_datetime(ts) for ts in self.sat_img.time.values]}
+        )
+
         if adjust_timestamps:
             self.adjust_obs_timestamps()
         return
@@ -189,11 +218,9 @@ class modis(earthdata):
         return self.meta_data['PERCENTCLOUDY']
         
     def get_recording_time(self):
-        date0 = datetime.strptime(self.meta_data['RANGEBEGINNINGDATE'] + 'T' + self.meta_data['RANGEBEGINNINGTIME'] + 'Z',
-                                 '%Y-%m-%dT%H:%M:%S.%fZ')
-        date1 = datetime.strptime(self.meta_data['RANGEENDINGDATE'] + 'T' + self.meta_data['RANGEENDINGTIME'] + 'Z',
-                                 '%Y-%m-%dT%H:%M:%S.%fZ')
-        return date0 + (date1 - date0 ) / 2
+        date0 = cftime_to_datetime(self.sat_img.time.values[0])
+        date1 = cftime_to_datetime(self.sat_img.time.values[-1])
+        return date0 + (date1 - date0) / 2
 
     def mask_snow(self, bands=None):
         if bands is None:
