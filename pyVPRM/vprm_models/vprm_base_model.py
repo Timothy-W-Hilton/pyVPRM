@@ -387,6 +387,7 @@ class vprm_base_model:
             self.load_weather_data(hour, day, month, year, era_keys=era_keys)
 
             if (lat is None) & (lon is None):
+                import ipdb; ipdb.set_trace()
                 self.era5_inst.regrid(
                     dataset=self.vprm_pre.empty_xr_lat_lon_grid,
                     weights=regridder_weights,

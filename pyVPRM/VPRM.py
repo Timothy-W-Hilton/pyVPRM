@@ -171,6 +171,7 @@ class vprm_preprocessor:
                     os.path.dirname(regridder_save_path),
                     "{}.nc".format(str(uuid.uuid4())),
                 )
+
                 src_grid_esmf = to_esmf_grid(self.sat_imgs.sat_img)
                 ds_out_esmf = to_esmf_grid(out_grid)
                 src_grid_esmf.to_netcdf(src_temp_path)
@@ -670,7 +671,10 @@ class vprm_preprocessor:
                     weights=regridder_save_path,
                     reuse_weights=True,
                 )
+                logger.debug("beginning land cover map regrid ")
                 handler = regridder(land_cover_map.sat_img)
+                logger.debug("done   land cover map regrid ")
+
                 handler = handler.assign_coords(
                     {
                         "x": self.sat_imgs.sat_img.coords["x"].values,

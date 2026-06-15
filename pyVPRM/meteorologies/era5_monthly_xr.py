@@ -59,12 +59,12 @@ class met_data_handler(met_data_handler_base):
         weights=None,
         overwrite_regridder=False,
     ):
-
         import xesmf as xe
 
         if self.in_era5_grid is False:
             return
 
+        import ipdb; ipdb.set_trace()
         if (self.regridder is None) | (overwrite_regridder):
             if (lats is not None) and (lons is not None):
                 t_ds_out = xr.Dataset(
@@ -89,6 +89,7 @@ class met_data_handler(met_data_handler_base):
                 )
                 self.ds_in_t.to_netcdf(src_temp_path)
                 t_ds_out.to_netcdf(dest_temp_path)
+                logger.debug(f'regridding {"placeholder"} to {src_temp_path}')
                 cmd = "ESMF_RegridWeightGen --source {} --destination {} --weight {} -m bilinear --64bit_offset  --extrap_method nearestd  --no_log".format(
                     src_temp_path, dest_temp_path, weights
                 )
@@ -102,6 +103,10 @@ class met_data_handler(met_data_handler_base):
             self.regridder = xe.Regridder(
                 self.data, t_ds_out, "bilinear", weights=weights, reuse_weights=True
             )
+        import ipdb
+
+        ipdb.set_trace()
+        # the problem is here!
         self.data = self.regridder(self.data)
         self.in_era5_grid = False
 
