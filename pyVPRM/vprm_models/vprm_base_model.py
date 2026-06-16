@@ -13,6 +13,7 @@ import itertools
 from scipy.optimize import curve_fit
 from loguru import logger
 
+
 class vprm_base_model:
     """
     Base class for all meteorologies
@@ -169,10 +170,10 @@ class vprm_base_model:
         # if (self.new is False) & ('w_scale' in self.buffer.keys()):
         #     return self.buffer['w_scale']
         lswi = self.get_lswi(lon, lat, site_name)
-        
-        #key = "max_lswi_evergreen" if land_cover_type == 1 else "max_lswi_others"
 
-        key = 'max_lswi'
+        # key = "max_lswi_evergreen" if land_cover_type == 1 else "max_lswi_others"
+
+        key = "max_lswi"
         # if key not in self.vprm_pre.max_lswi.sat_img.keys():
         #     self.vprm_pre.max_lswi.sat_img[key] = (
         #         self.vprm_pre.sat_imgs.sat_img["lswi"]
@@ -183,7 +184,6 @@ class vprm_base_model:
         #         )
         #         .max(self.vprm_pre.time_key, skipna=True)
         #     )
-
 
         if site_name is not None:
             max_lswi = float(
@@ -451,7 +451,11 @@ class vprm_base_model:
         else:
             lc_classes = [land_cover_type]
 
-        lc_classes = [i for i in lc_classes if ((i not in no_flux_veg_types) & (i in self.fit_params_dict.keys()))]
+        lc_classes = [
+            i
+            for i in lc_classes
+            if ((i not in no_flux_veg_types) & (i in self.fit_params_dict.keys()))
+        ]
         lc_classes = np.atleast_1d(lc_classes)
         for i in lc_classes:
             if mode == "2d":

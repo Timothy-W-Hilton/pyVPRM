@@ -31,6 +31,7 @@ import numpy as np
 from pyVPRM.sat_managers.base_manager import satellite_data_manager
 from loguru import logger
 
+
 class sentinel2(satellite_data_manager):
     # Class to download an load sentinel 2 data
     # Note: Available data on the copernicus hub is
@@ -48,7 +49,9 @@ class sentinel2(satellite_data_manager):
         return
 
     def set_band_names(self):
-        logger.info("Trying to set reflectance bands assuming standard naming for Sentinel-2")
+        logger.info(
+            "Trying to set reflectance bands assuming standard naming for Sentinel-2"
+        )
         bands = []
         for i in list(self.sat_img.data_vars):
             if (

@@ -20,7 +20,8 @@ import yaml
 import warnings
 import subprocess
 import re
-from datetime import datetime, timedelta    
+from datetime import datetime, timedelta
+
 warnings.filterwarnings("ignore")
 from matplotlib.colors import LinearSegmentedColormap
 from lxml import etree
@@ -31,6 +32,7 @@ import xarray as xr
 from datetime import datetime, timedelta, date
 import numpy as np
 from loguru import logger
+
 
 def geodesic_point_buffer(lat, lon, km):
     buf = Point(0, 0).buffer(km * 1000)  # distance in metres
@@ -82,62 +84,54 @@ class satellite_data_manager:
         result = numerator / denominator
         return result.where(np.isfinite(result), fill_value)
 
-    def add_ndvi(self, nir='nir08', red='red'):
+    def add_ndvi(self, nir="nir08", red="red"):
         nir = self.sat_img[nir]
         red = self.sat_img[red]
-        self.sat_img['ndvi'] = self.safe_divide(nir - red, nir + red)
+        self.sat_img["ndvi"] = self.safe_divide(nir - red, nir + red)
         return True
 
-    def add_nirv(self, nir='nir08', red='red'):
+    def add_nirv(self, nir="nir08", red="red"):
         # Ensure NDVI exists
-        if 'ndvi' not in self.sat_img:
+        if "ndvi" not in self.sat_img:
             self.add_ndvi(nir, red)
         nir = self.sat_img[nir]
-        self.sat_img['nirv'] = self.sat_img['ndvi'] * nir
+        self.sat_img["nirv"] = self.sat_img["ndvi"] * nir
         return True
 
-    def add_ndre(self, nir='nir08', red='rededge'):
-        nir = self.sat_img['nir08']
+    def add_ndre(self, nir="nir08", red="rededge"):
+        nir = self.sat_img["nir08"]
         # No red-edge in default_bands, using red as proxy
-        red_edge = self.sat_img['red']
-        self.sat_img['ndre'] = self.safe_divide(nir - red_edge, nir + red_edge)
+        red_edge = self.sat_img["red"]
+        self.sat_img["ndre"] = self.safe_divide(nir - red_edge, nir + red_edge)
         return True
 
-    def add_ndwi(self, nir='nir08', swir='swir16'):
-        nir = self.sat_img['nir08']
-        swir1 = self.sat_img['swir16']
-        self.sat_img['ndwi'] = self.safe_divide(nir - swir1, nir + swir1)
+    def add_ndwi(self, nir="nir08", swir="swir16"):
+        nir = self.sat_img["nir08"]
+        swir1 = self.sat_img["swir16"]
+        self.sat_img["ndwi"] = self.safe_divide(nir - swir1, nir + swir1)
         return True
 
-    def add_evi(self, nir='nir08', red='red', blue='blue'):
+    def add_evi(self, nir="nir08", red="red", blue="blue"):
         nir = self.sat_img[nir]
         red = self.sat_img[red]
         blue = self.sat_img[blue]
-        evi = 2.5 * self.safe_divide(
-            nir - red,
-            nir + 6.0 * red - 7.5 * blue + 1.0)
+        evi = 2.5 * self.safe_divide(nir - red, nir + 6.0 * red - 7.5 * blue + 1.0)
         evi = evi.where((evi >= 0.0) & (evi <= 1.0))
-        self.sat_img['evi'] = evi
+        self.sat_img["evi"] = evi
         return True
 
-    def add_evi2(self, nir='nir08', red='red'):
+    def add_evi2(self, nir="nir08", red="red"):
         nir = self.sat_img[nir]
         red = self.sat_img[red]
-    
-        self.sat_img['evi2'] = 2.5 * self.safe_divide(
-            nir - red,
-            nir + 2.4 * red + 1.0
-        )
+
+        self.sat_img["evi2"] = 2.5 * self.safe_divide(nir - red, nir + 2.4 * red + 1.0)
         return True
 
-    def add_lswi(self, nir='nir08', swir='swir16'):
+    def add_lswi(self, nir="nir08", swir="swir16"):
         nir = self.sat_img[nir]
         swir = self.sat_img[swir]
-    
-        self.sat_img['lswi'] = self.safe_divide(
-            nir - swir,
-            nir + swir
-        )
+
+        self.sat_img["lswi"] = self.safe_divide(nir - swir, nir + swir)
         return True
 
     def value_at_lonlat(
@@ -313,7 +307,9 @@ class satellite_data_manager:
         if not isinstance(new_tiles, list):
             new_tiles = [new_tiles]
         if not np.all([isinstance(i, satellite_data_manager) for i in new_tiles]):
-            logger.info("Can only merge with another instance of a satellite_data_manger")
+            logger.info(
+                "Can only merge with another instance of a satellite_data_manger"
+            )
         if reproject:
             logger.info("Do reprojections")
             to_merge = [
@@ -452,7 +448,7 @@ class earthdata(satellite_data_manager):
 
         # Function to construct the url name
         def join_url(*parts):
-            return '/'.join(str(part).strip('/') for part in parts)
+            return "/".join(str(part).strip("/") for part in parts)
 
         modisDown = self._init_downloader(
             savepath, date, delta, username, lonlat, pwd, token, jpg, enddate, hv
@@ -467,13 +463,19 @@ class earthdata(satellite_data_manager):
             logger.info("Download {}: {}".format(d, cde))
             for c in cde:
                 file_url = join_url(modisDown.url, modisDown.path, d, c)
-                subprocess.run([
-                    "wget",
-                    "--user", modisDown.user,
-                    "--password", modisDown.password,
-                    "--directory-prefix", modisDown.writeFilePath,
-                    file_url
-                ], check=True)
+                subprocess.run(
+                    [
+                        "wget",
+                        "--user",
+                        modisDown.user,
+                        "--password",
+                        modisDown.password,
+                        "--directory-prefix",
+                        modisDown.writeFilePath,
+                        file_url,
+                    ],
+                    check=True,
+                )
                 time.sleep(5)
             # modisDown.dayDownload(d, cde)
         return

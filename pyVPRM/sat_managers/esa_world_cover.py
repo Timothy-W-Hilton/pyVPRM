@@ -4,6 +4,7 @@ import numpy as np
 import yaml
 import xarray as xr
 
+
 class esa_world_cover(satellite_data_manager):
 
     def __init__(self, sat_image_path):
@@ -15,7 +16,7 @@ class esa_world_cover(satellite_data_manager):
     def get_resolution(self):
         return self.resolution
 
-    def map_veg_classes(self, cfg_path, var_name='band_1'):
+    def map_veg_classes(self, cfg_path, var_name="band_1"):
         map_to_vprm_class = dict()
         with open(cfg_path, "r") as stream:
             try:
@@ -26,18 +27,17 @@ class esa_world_cover(satellite_data_manager):
             for c in vprm_cfg[key]["class_numbers"]:
                 map_to_vprm_class[c] = vprm_cfg[key]["vprm_class"]
         for key in map_to_vprm_class.keys():
-                self.sat_img[var_name] = xr.where(
-                    self.sat_img[var_name] == key,
-                    map_to_vprm_class[key],
-                    self.sat_img[var_name],
-                )
+            self.sat_img[var_name] = xr.where(
+                self.sat_img[var_name] == key,
+                map_to_vprm_class[key],
+                self.sat_img[var_name],
+            )
         return
-
 
     def individual_loading(self):
         self.sat_img = rxr.open_rasterio(
             self.sat_image_path,
             band_as_variable=True,
-            chunks=True, 
+            chunks=True,
         ).squeeze()
         self.keys = np.array(list(self.sat_img.data_vars))

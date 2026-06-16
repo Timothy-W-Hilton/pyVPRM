@@ -11,17 +11,18 @@ import rioxarray
 import warnings
 from pykalman import KalmanFilter
 
+
 def vpd_hpa_to_rh(vpd_hpa, T):
     """
     Convert VPD (hPa) to relative humidity (%) given temperature (°C).
-    
+
     Parameters
     ----------
     vpd_hpa : float or np.array
         Vapor pressure deficit in hPa
     T : float or np.array
         Air temperature in Celsius
-        
+
     Returns
     -------
     RH : float or np.array
@@ -29,17 +30,18 @@ def vpd_hpa_to_rh(vpd_hpa, T):
     """
     # Convert VPD from hPa → kPa
     vpd = vpd_hpa / 10.0
-    
+
     # Saturation vapor pressure (kPa)
     e_s = 0.6108 * np.exp(17.27 * T / (T + 237.3))
-    
+
     # Actual vapor pressure
     e_a = e_s - vpd
-    
+
     # Relative humidity (%)
     RH = (e_a / e_s) * 100
     RH = np.clip(RH, 0, 100)  # constrain to 0–100%
     return RH
+
 
 def sel_nearest_valid(ds, lon, lat):
     """
@@ -54,10 +56,7 @@ def sel_nearest_valid(ds, lon, lat):
     stacked = ds.stack(_points=("lat", "lon"))
 
     # compute distance
-    dist = np.sqrt(
-        (stacked.lon - lon) ** 2 +
-        (stacked.lat - lat) ** 2
-    )
+    dist = np.sqrt((stacked.lon - lon) ** 2 + (stacked.lat - lat) ** 2)
 
     # define validity: at least one variable is non-NaN
     valid_mask = None
@@ -74,6 +73,7 @@ def sel_nearest_valid(ds, lon, lat):
 
     # select and unstack back to dataset structure
     return stacked.isel(_points=idx).drop_vars("_points")
+
 
 def central_nxn_mean(da, n, y_dim="y", x_dim="x"):
     """
@@ -107,24 +107,28 @@ def central_nxn_mean(da, n, y_dim="y", x_dim="x"):
     cx = nx // 2
     r = n // 2
 
-    return (
-        da.isel(
-            **{
-                y_dim: slice(cy - r, cy + r + 1),
-                x_dim: slice(cx - r, cx + r + 1),
-            }
-        )
-        .mean(dim=(y_dim, x_dim), skipna=True)
-    )
+    return da.isel(
+        **{
+            y_dim: slice(cy - r, cy + r + 1),
+            x_dim: slice(cx - r, cx + r + 1),
+        }
+    ).mean(dim=(y_dim, x_dim), skipna=True)
 
 
 def get_corners_from_pixel_centers_1D(pixel_centers_1D):
-    half_pixel_width = np.unique(np.diff(pixel_centers_1D))[0]/2       #get smallest difference between two pixel centers (why not just take first?)
-    pixel_corners = pixel_centers_1D - half_pixel_width                #shift from center to top/left corners
-    pixel_corners = list(pixel_corners)                                #list for fast appending
-    pixel_corners.append(pixel_corners[-1]+2*half_pixel_width)         #add missing lower/right corners
+    half_pixel_width = (
+        np.unique(np.diff(pixel_centers_1D))[0] / 2
+    )  # get smallest difference between two pixel centers (why not just take first?)
+    pixel_corners = (
+        pixel_centers_1D - half_pixel_width
+    )  # shift from center to top/left corners
+    pixel_corners = list(pixel_corners)  # list for fast appending
+    pixel_corners.append(
+        pixel_corners[-1] + 2 * half_pixel_width
+    )  # add missing lower/right corners
     pixel_corners = np.array(pixel_corners)
-    return pixel_corners  
+    return pixel_corners
+
 
 def parse_wrf_grid_file(file_path, n_chunks=1, chunk_x=1, chunk_y=1):
 
@@ -178,49 +182,52 @@ def parse_wrf_grid_file(file_path, n_chunks=1, chunk_x=1, chunk_y=1):
     return out_grid
 
 
-def make_xesmf_grid(satellite_image, transformer = None):
-    '''
+def make_xesmf_grid(satellite_image, transformer=None):
+    """
     give satellite_image as dict only if coordinates are aready lat lon, then no transformation necessary
-    '''
-    
-    #get x and y coordinates of pixel centers from the satellite image
-    if isinstance(satellite_image, dict):
-        x_pixel_centers = satellite_image['lons']
-        y_pixel_centers = satellite_image['lats']
-    else:
-        x_pixel_centers = satellite_image.coords['x'].values
-        y_pixel_centers = satellite_image.coords['y'].values
+    """
 
-    #get the pixel corners from the pixel centers   
+    # get x and y coordinates of pixel centers from the satellite image
+    if isinstance(satellite_image, dict):
+        x_pixel_centers = satellite_image["lons"]
+        y_pixel_centers = satellite_image["lats"]
+    else:
+        x_pixel_centers = satellite_image.coords["x"].values
+        y_pixel_centers = satellite_image.coords["y"].values
+
+    # get the pixel corners from the pixel centers
     x_pixel_corners = get_corners_from_pixel_centers_1D(x_pixel_centers)
     y_pixel_corners = get_corners_from_pixel_centers_1D(y_pixel_centers)
 
-    #make meshgrids
+    # make meshgrids
     X_center_grid, Y_center_grid = np.meshgrid(x_pixel_centers, y_pixel_centers)
     X_corner_grid, Y_corner_grid = np.meshgrid(x_pixel_corners, y_pixel_corners)
 
-    #if coordinates are not already lat lon dict, define transformer to transform from the images crs to the defined crs of WGS84
-    if not isinstance(satellite_image, dict):    
-        #define transformer using crs of satellite_image
+    # if coordinates are not already lat lon dict, define transformer to transform from the images crs to the defined crs of WGS84
+    if not isinstance(satellite_image, dict):
+        # define transformer using crs of satellite_image
         if transformer is None:
-            transformer = Transformer.from_crs(satellite_image.rio.crs,
-                            '+proj=longlat +datum=WGS84',
-                            always_xy=True)
-        #apply transformer to the grids
-        X_center_grid, Y_center_grid = transformer.transform(X_center_grid, Y_center_grid)
-        X_corner_grid, Y_corner_grid = transformer.transform(X_corner_grid, Y_corner_grid)
+            transformer = Transformer.from_crs(
+                satellite_image.rio.crs, "+proj=longlat +datum=WGS84", always_xy=True
+            )
+        # apply transformer to the grids
+        X_center_grid, Y_center_grid = transformer.transform(
+            X_center_grid, Y_center_grid
+        )
+        X_corner_grid, Y_corner_grid = transformer.transform(
+            X_corner_grid, Y_corner_grid
+        )
 
-   #put the grids in one xarray
-    pixel_grid = xr.Dataset({"lon": (["y", "x"], X_center_grid,
-                          {"units": "degrees_east"}),
-                         "lon_b": (["y_b", "x_b"], X_corner_grid,
-                         {"units": "degrees_east"}),
-                          "lat": (["y", "x"], Y_center_grid,
-                          {"units": "degrees_north"}),
-                         "lat_b": (["y_b", "x_b"], Y_corner_grid,
-                         {"units": "degrees_north"})
-                          })
-    pixel_grid = pixel_grid.set_coords(['lon', 'lat', "lon_b", "lat_b"])
+    # put the grids in one xarray
+    pixel_grid = xr.Dataset(
+        {
+            "lon": (["y", "x"], X_center_grid, {"units": "degrees_east"}),
+            "lon_b": (["y_b", "x_b"], X_corner_grid, {"units": "degrees_east"}),
+            "lat": (["y", "x"], Y_center_grid, {"units": "degrees_north"}),
+            "lat_b": (["y_b", "x_b"], Y_corner_grid, {"units": "degrees_north"}),
+        }
+    )
+    pixel_grid = pixel_grid.set_coords(["lon", "lat", "lon_b", "lat_b"])
     return pixel_grid
 
 
@@ -315,9 +322,9 @@ def to_esmf_grid(sat_img):
     return dso
 
 
-def do_kalman_smoothing(array_to_smooth, timestamps,
-                        transition_covariance=0.01,
-                        observation_covariance=0.05):
+def do_kalman_smoothing(
+    array_to_smooth, timestamps, transition_covariance=0.01, observation_covariance=0.05
+):
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=RuntimeWarning)
@@ -326,7 +333,9 @@ def do_kalman_smoothing(array_to_smooth, timestamps,
         if array_to_smooth.size == 0:
             return np.full_like(array_to_smooth, np.nan, dtype=float)
 
-        t_unique, inv = np.unique(timestamps, return_inverse=True)  ### CHANGE (performance)
+        t_unique, inv = np.unique(
+            timestamps, return_inverse=True
+        )  ### CHANGE (performance)
         if len(t_unique) == 0:
             return np.full_like(array_to_smooth, np.nan, dtype=float)
 
@@ -338,10 +347,9 @@ def do_kalman_smoothing(array_to_smooth, timestamps,
         if array_to_smooth.ndim == 1:
 
             ### CHANGE: vectorized nanmean by time index
-            y_mean = np.array([
-                np.nanmean(array_to_smooth[inv == k])
-                for k in range(len(t_unique))
-            ])
+            y_mean = np.array(
+                [np.nanmean(array_to_smooth[inv == k]) for k in range(len(t_unique))]
+            )
 
             ### CHANGE: guard against all-NaN series
             if np.all(np.isnan(y_mean)):
@@ -364,7 +372,7 @@ def do_kalman_smoothing(array_to_smooth, timestamps,
                 transition_covariance=transition_covariance,
                 observation_covariance=observation_covariance,
                 initial_state_mean=y0,
-                initial_state_covariance=1.0
+                initial_state_covariance=1.0,
             )
 
             y_masked = np.ma.masked_invalid(y_daily)
@@ -376,15 +384,19 @@ def do_kalman_smoothing(array_to_smooth, timestamps,
         # 2D CASE
         # =======================
         else:
-            ret_array = np.full((len(t_daily), array_to_smooth.shape[1]), np.nan)  ### CHANGE
+            ret_array = np.full(
+                (len(t_daily), array_to_smooth.shape[1]), np.nan
+            )  ### CHANGE
 
             for j in range(array_to_smooth.shape[1]):
 
                 ### CHANGE: vectorized nanmean
-                y_mean = np.array([
-                    np.nanmean(array_to_smooth[:, j][inv == k])
-                    for k in range(len(t_unique))
-                ])
+                y_mean = np.array(
+                    [
+                        np.nanmean(array_to_smooth[:, j][inv == k])
+                        for k in range(len(t_unique))
+                    ]
+                )
 
                 ### CHANGE: skip all-NaN pixels
                 if np.all(np.isnan(y_mean)):
@@ -407,7 +419,7 @@ def do_kalman_smoothing(array_to_smooth, timestamps,
                     transition_covariance=transition_covariance,
                     observation_covariance=observation_covariance,
                     initial_state_mean=y0,
-                    initial_state_covariance=1.0
+                    initial_state_covariance=1.0,
                 )
 
                 y_masked = np.ma.masked_invalid(y_daily)
@@ -416,7 +428,6 @@ def do_kalman_smoothing(array_to_smooth, timestamps,
                 ret_array[:, j] = state_mean[:, 0]
 
             return ret_array.T
-
 
 
 '''
@@ -594,6 +605,7 @@ def add_corners_to_1d_grid(mids):
     mids = np.array(mids)
     return mids
 
+
 def get_specific_chunk(data, dim_chunks, chunk_position):
     """
     Get a specific chunk from an xarray DataArray based on its position in the grid.
@@ -634,17 +646,17 @@ def get_specific_chunk(data, dim_chunks, chunk_position):
 
 def get_fully_covered_destinaion_grid_cell(dest_grid, regridder):
     # Currently only works for destination grid in WGS84
-    
-    dest_lon = dest_grid['lon'].values
-    dest_lat = dest_grid['lat'].values
+
+    dest_lon = dest_grid["lon"].values
+    dest_lat = dest_grid["lat"].values
     weights = regridder.weights.data  # Extract sparse matrix from DataArray
-    
+
     # Sum weights for each destination cell
     dest_weights_sum = np.array(weights.sum(axis=1).todense()).flatten()
-    
+
     # Check if destination cells are fully covered (sum of weights == 1)
     is_fully_covered = dest_weights_sum > 0.99
-    
+
     # Create a mask indicating fully covered cells
     coverage_mask = is_fully_covered.reshape((len(dest_lat), len(dest_lon)))
     dest_grid["is_fully_covered"] = (["lat", "lon"], coverage_mask)
@@ -653,21 +665,21 @@ def get_fully_covered_destinaion_grid_cell(dest_grid, regridder):
 
 def get_fractional_coverage_of_destinaion_grid_cell(dest_grid, regridder):
     # Currently only works for destination grid in WGS84
-    
-    dest_lon = dest_grid['lon'].values
-    dest_lat = dest_grid['lat'].values
+
+    dest_lon = dest_grid["lon"].values
+    dest_lat = dest_grid["lat"].values
     weights = regridder.weights.data  # Extract sparse matrix from DataArray
-    
+
     # Sum weights for each destination cell
     dest_weights_sum = np.array(weights.sum(axis=1).todense()).flatten()
-    
+
     # Create a mask indicating fully covered cells
     coverage_mask = dest_weights_sum.reshape((len(dest_lat), len(dest_lon)))
     dest_grid["is_fully_covered"] = (["lat", "lon"], coverage_mask)
     return dest_grid
 
 
-def merge_chunks_with_open_mfdataset(chunk_files, dim_order=['x', 'y']):
+def merge_chunks_with_open_mfdataset(chunk_files, dim_order=["x", "y"]):
     """
     Merge pre-saved chunk files into a single xarray DataArray using open_mfdataset
     for efficient processing row-by-row or column-by-column.
@@ -702,7 +714,9 @@ def merge_chunks_with_open_mfdataset(chunk_files, dim_order=['x', 'y']):
         )
 
     # Organize partial datasets into a grid for further concatenation
-    grid_shape = tuple(max(pos[i] for pos in chunk_files.keys()) + 1 for i in range(ndim - 1))
+    grid_shape = tuple(
+        max(pos[i] for pos in chunk_files.keys()) + 1 for i in range(ndim - 1)
+    )
     dataset_grid = np.empty(grid_shape, dtype=object)
 
     for group_key, dataset in partial_datasets.items():
@@ -711,7 +725,11 @@ def merge_chunks_with_open_mfdataset(chunk_files, dim_order=['x', 'y']):
     # Merge across the remaining dimensions recursively
     for dim_idx in reversed(range(ndim - 1)):
         dataset_grid = [
-            xr.concat(row, dim=dim_order[dim_idx]) if isinstance(row, (list, np.ndarray)) else row
+            (
+                xr.concat(row, dim=dim_order[dim_idx])
+                if isinstance(row, (list, np.ndarray))
+                else row
+            )
             for row in dataset_grid
         ]
         dataset_grid = xr.concat(dataset_grid, dim=dim_order[dim_idx])
@@ -720,16 +738,13 @@ def merge_chunks_with_open_mfdataset(chunk_files, dim_order=['x', 'y']):
 
 
 def replace_inf_runs_ignore_nans(
-    da: xr.DataArray,
-    time_dim: str = "time",
-    N: int = 4,
-    percentile: float = 5.0
+    da: xr.DataArray, time_dim: str = "time", N: int = 4, percentile: float = 5.0
 ) -> xr.DataArray:
     """
     Replace runs of >= N consecutive inf values (ignoring nans) along time
     with the given percentile (default 5%) of the finite values over time.
     Otherwise replace infs with nan.
-    
+
     Parameters
     ----------
     da : xr.DataArray
@@ -742,7 +757,7 @@ def replace_inf_runs_ignore_nans(
         Percentile (0–100) of finite values to use for replacement.
     """
     time_axis = da.get_axis_num(time_dim)
-    arr = np.moveaxis(da.values, time_axis, 0)   # shape (T, ...)
+    arr = np.moveaxis(da.values, time_axis, 0)  # shape (T, ...)
     T = arr.shape[0]
 
     if arr.ndim == 1:
@@ -750,14 +765,14 @@ def replace_inf_runs_ignore_nans(
         out_flat = flat.copy()
     else:
         spatial_size = int(np.prod(arr.shape[1:]))
-        flat = arr.reshape(T, spatial_size)      # shape (T, P)
+        flat = arr.reshape(T, spatial_size)  # shape (T, P)
         out_flat = flat.copy()
 
     for p in range(flat.shape[1]):
         seq = flat[:, p]
         is_inf = np.isinf(seq)
         is_finite = np.isfinite(seq)
-        not_break = ~is_finite         # True for inf or nan
+        not_break = ~is_finite  # True for inf or nan
 
         # reference distribution of finite values
         finite_vals = seq[is_finite]
@@ -792,6 +807,6 @@ def replace_inf_runs_ignore_nans(
     out = out_flat.reshape(arr.shape)
     out = np.moveaxis(out, 0, time_axis)
 
-    return xr.DataArray(out, coords=da.coords, dims=da.dims, name=da.name, attrs=da.attrs)
-
-
+    return xr.DataArray(
+        out, coords=da.coords, dims=da.dims, name=da.name, attrs=da.attrs
+    )

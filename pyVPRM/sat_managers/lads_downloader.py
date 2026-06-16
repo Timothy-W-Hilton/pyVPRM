@@ -2,10 +2,10 @@
 # Author:      S. Botía
 # Created:     2025-12-09
 # Last update: 2025-12-14
-# Description: This script downloads MODIS products hosted by the NASA LAADS DAAC. The EarthdataLAADS class provides helper functions to list and download MODIS HDF files for specific tiles and 8-day composite dates using Earthdata Login bearer-token authentication. The implementation is designed to: Integrate with the existing pyVPRM satellite data manager interface, support MODIS 8-day composite products (e.g. MOD09A1), be compatible with SLURM job arrays and use wget for downloads. 
+# Description: This script downloads MODIS products hosted by the NASA LAADS DAAC. The EarthdataLAADS class provides helper functions to list and download MODIS HDF files for specific tiles and 8-day composite dates using Earthdata Login bearer-token authentication. The implementation is designed to: Integrate with the existing pyVPRM satellite data manager interface, support MODIS 8-day composite products (e.g. MOD09A1), be compatible with SLURM job arrays and use wget for downloads.
 # Requirements:
 #      - Python ≥ 3.8
-#      - Python packages: requests, loguru, 
+#      - Python packages: requests, loguru,
 #      - System tools: wget (available on PATH)
 #      - Project dependencies: pyVPRM (for satellite_data_manager base class)
 # Authentication:
@@ -25,8 +25,10 @@ class EarthdataLAADS(satellite_data_manager):
     """
     Downloader for MODIS products hosted by NASA LAADS DAAC using Earthdata Login bearer-token authentication.
     """
-    
-    def __init__(self, datapath=None, sat_image_path=None, sat_img=None, product="MOD09A1.061"):
+
+    def __init__(
+        self, datapath=None, sat_image_path=None, sat_img=None, product="MOD09A1.061"
+    ):
         """
         Initialize the EarthdataLAADS downloader.
         Parameters
@@ -63,11 +65,21 @@ class EarthdataLAADS(satellite_data_manager):
             collection = "61"
         return product_name, collection
 
-    def _init_downloader(self,dest,date,delta,username,
-                         lonlat=None,pwd=None,token=None,
-                         jpg=False, enddate=None, hv=None,):
+    def _init_downloader(
+        self,
+        dest,
+        date,
+        delta,
+        username,
+        lonlat=None,
+        pwd=None,
+        token=None,
+        jpg=False,
+        enddate=None,
+        hv=None,
+    ):
         """
-        Initialize a downloader config dictionary. This method has the same structure as the interface of 
+        Initialize a downloader config dictionary. This method has the same structure as the interface of
         older Earthdata-based downloaders used in pyVPRM for compatibility.
         Parameters
         ----------
@@ -96,7 +108,7 @@ class EarthdataLAADS(satellite_data_manager):
         dict
             Dictionary describing downloader configuration.
         """
-        
+
         if hv is not None:
             h, v = hv
         elif lonlat is not None:
@@ -113,19 +125,20 @@ class EarthdataLAADS(satellite_data_manager):
         product_name, collection = self._parse_product_collection()
         base_url = f"https://ladsweb.modaps.eosdis.nasa.gov/archive/allData/{collection}/{product_name}/"
 
-        downloader = {"writeFilePath": dest,
-                      "tiles": tiles,
-                      "product": self.product,
-                      "product_name": product_name,
-                      "collection": collection,
-                      "token": token,
-                      "username": username,
-                      "password": pwd,
-                      "delta": delta,
-                      "start_date": date,
-                      "end_date": enddate,
-                      "url": base_url,
-                     }
+        downloader = {
+            "writeFilePath": dest,
+            "tiles": tiles,
+            "product": self.product,
+            "product_name": product_name,
+            "collection": collection,
+            "token": token,
+            "username": username,
+            "password": pwd,
+            "delta": delta,
+            "start_date": date,
+            "end_date": enddate,
+            "url": base_url,
+        }
         return downloader
 
     def _generate_modis_doys(self, start, end):
@@ -147,7 +160,7 @@ class EarthdataLAADS(satellite_data_manager):
             Day-of-year (DOY) formatted as zero-padded string.
         Yield datetime and doy string for MODIS 8-day composites inside [start,end].
         """
-        
+
         cur = start
         while cur <= end:
             doy = cur.timetuple().tm_yday
@@ -174,7 +187,9 @@ class EarthdataLAADS(satellite_data_manager):
         """
         headers = {}
         if token:
-            headers["Authorization"] = token if token.startswith("Bearer") else f"Bearer {token}"
+            headers["Authorization"] = (
+                token if token.startswith("Bearer") else f"Bearer {token}"
+            )
         try:
             r = requests.get(dir_url, headers=headers, timeout=timeout)
             if r.status_code == 200:
@@ -185,7 +200,6 @@ class EarthdataLAADS(satellite_data_manager):
         except Exception as e:
             logger.exception(f"_list_dir error for {dir_url}: {e}")
             return None
-
 
     def list_doy_directory(self, year, doy, token=None, timeout=30):
         """
@@ -198,17 +212,16 @@ class EarthdataLAADS(satellite_data_manager):
             Day of year.
         token : str, optional
             Earthdata bearer token.
-            
+
         Returns
         -------
         str or None
             HTML directory listing.
         """
-        
+
         product_name, collection = self._parse_product_collection()
         dir_url = f"https://ladsweb.modaps.eosdis.nasa.gov/archive/allData/{collection}/{product_name}/{year}/{doy:03d}/"
         return self._list_dir(dir_url, token=token, timeout=timeout)
-
 
     def _wget_download(self, url, outpath, token):
         """
@@ -231,20 +244,24 @@ class EarthdataLAADS(satellite_data_manager):
         os.makedirs(os.path.dirname(outpath) or ".", exist_ok=True)
         tmp = outpath + ".part"
         # build command: use -q for quiet or remove to show progress
-        cmd = ["wget",
-               "-c",
-               "--header", 
-               f"Authorization: Bearer {token}",
-               "-O", 
-               tmp,
-               url]
+        cmd = [
+            "wget",
+            "-c",
+            "--header",
+            f"Authorization: Bearer {token}",
+            "-O",
+            tmp,
+            url,
+        ]
 
         logger.info("WGET CMD: " + " ".join(cmd))
 
         try:
             proc = subprocess.run(cmd, check=False, capture_output=True, text=True)
             if proc.returncode != 0:
-                logger.error(f"wget failed (rc={proc.returncode}) for {url}: {proc.stderr.strip()}")
+                logger.error(
+                    f"wget failed (rc={proc.returncode}) for {url}: {proc.stderr.strip()}"
+                )
                 # cleanup partial if exists
                 try:
                     if os.path.exists(tmp):
@@ -255,7 +272,7 @@ class EarthdataLAADS(satellite_data_manager):
             # move tmp -> final
             os.replace(tmp, outpath)
             return True
-            
+
         except Exception as e:
             logger.exception(f"_wget_download exception for {url}: {e}")
             try:
@@ -265,7 +282,9 @@ class EarthdataLAADS(satellite_data_manager):
                 pass
             return False
 
-    def download_doy(self, year, doy, savepath, token=None, tile=None, resume=True, timeout=60):
+    def download_doy(
+        self, year, doy, savepath, token=None, tile=None, resume=True, timeout=60
+    ):
         """
         Download all MODIS HDF files for a given year, DOY, and tile.
         Parameters
@@ -289,17 +308,21 @@ class EarthdataLAADS(satellite_data_manager):
         list[str]
             List of downloaded (or existing) file paths.
         """
-        
+
         # normalize tile
         if isinstance(tile, (tuple, list)):
             tile = f"h{int(tile[0]):02d}v{int(tile[1]):02d}"
         if tile is None:
-            raise ValueError("tile must be provided to download_doy (e.g. 'h09v09' or (9,9))")
+            raise ValueError(
+                "tile must be provided to download_doy (e.g. 'h09v09' or (9,9))"
+            )
 
         html = self.list_doy_directory(year, doy, token=token)
         # html = self.list_doy_directory(year, doy, token=token, timeout=timeout)
         if html is None:
-            logger.info(f"Directory not available or empty for {year} DOY {int(doy):03d}")
+            logger.info(
+                f"Directory not available or empty for {year} DOY {int(doy):03d}"
+            )
             return []
 
         matches = self.find_hdfs_in_html(html, year, doy, tile)
@@ -309,7 +332,7 @@ class EarthdataLAADS(satellite_data_manager):
 
         downloaded = []
         for fname in matches:
-            #outdir = os.path.join(savepath, str(year))
+            # outdir = os.path.join(savepath, str(year))
             outdir = savepath
             outpath = os.path.join(outdir, fname)
             if os.path.exists(outpath):
@@ -328,7 +351,7 @@ class EarthdataLAADS(satellite_data_manager):
             time.sleep(1)  # pause
 
         return downloaded
-        
+
     def build_doy_url(self, year, doy):
         """
         Return the base URL for a given year and DOY, e.g.,
@@ -355,10 +378,10 @@ class EarthdataLAADS(satellite_data_manager):
         list[str]
             List of matching HDF filenames.
         """
-        
+
         if html is None:
             return []
-    
+
         # Build regex pattern
         product_name, _ = self._parse_product_collection()
         pattern = rf"{product_name}\.A{year}{doy:03d}\.{tile}\..*?\.hdf"

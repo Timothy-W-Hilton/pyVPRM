@@ -44,6 +44,7 @@ crs_str = 'PROJCS["unnamed",\
             PARAMETER["false_northing",0], \
             UNIT["Meter",1]]'
 
+
 class modis(earthdata):
     # Class to download and load MODIS data
 
@@ -87,7 +88,9 @@ class modis(earthdata):
         ).replace(tzinfo=None)
 
     def set_band_names(self):
-        logger.info("Trying to set reflectance bands assuming standard naming for MODIS")
+        logger.info(
+            "Trying to set reflectance bands assuming standard naming for MODIS"
+        )
         bands = []
         for i in list(self.sat_img.data_vars):
             if ("sur_refl" in i) & ("_b" in i):
@@ -218,7 +221,7 @@ class modis(earthdata):
             self.sat_img = self.sat_img.rio.write_crs(crs_str)
             # Add as an attribute to each data variable
             for var in self.sat_img.data_vars:
-                self.sat_img[var].attrs['scale_factor'] = 1.0
+                self.sat_img[var].attrs["scale_factor"] = 1.0
         if self.use_keys is None:
             self.use_keys = list(self.sat_img.keys())
         self.sat_img = self.sat_img[self.use_keys]

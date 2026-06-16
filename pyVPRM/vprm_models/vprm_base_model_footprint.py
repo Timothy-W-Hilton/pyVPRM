@@ -15,13 +15,20 @@ from loguru import logger
 from pyVPRM.flux_tower_libs.FFP_footprint_class import FFP_footprint_manager
 from pyVPRM.flux_tower_libs.KM_footprint_class import KM_footprint_manager
 
+
 class vprm_base_model_footprint:
     """
     Base class for all meteorologies
     """
 
-    def __init__(self, vprm_pre=None, met=None, fit_params_dict=None,
-                 footprint=None, flux_tower_instance=None):
+    def __init__(
+        self,
+        vprm_pre=None,
+        met=None,
+        fit_params_dict=None,
+        footprint=None,
+        flux_tower_instance=None,
+    ):
         self.era5_inst = met
         self.vprm_pre = vprm_pre
         self.fit_params_dict = fit_params_dict
@@ -140,7 +147,7 @@ class vprm_base_model_footprint:
         # if (self.new is False) & ('w_scale' in self.buffer.keys()):
         #     return self.buffer['w_scale']
         lswi = self.get_lswi(lon, lat, site_name)
-        
+
         if land_cover_type in [4, 7]:
             self.buffer["w_scale"] = (lswi - min_lswi) / (max_lswi - min_lswi)
         else:
@@ -169,59 +176,77 @@ class vprm_base_model_footprint:
                     LSWI array
         """
 
-    def data_for_fitting(self, footprint_regridder_path='./', met_variables=dict()):
-        ds = vprm_pre.sat_imgs.sat_img.drop(['scl','ndvi']).drop(['time'])
+    def data_for_fitting(self, footprint_regridder_path="./", met_variables=dict()):
+        ds = vprm_pre.sat_imgs.sat_img.drop(["scl", "ndvi"]).drop(["time"])
         ds = ds.assign_attrs(crs=ds.rio.crs)
-        ds['min_evi'] = vprm_pre.min_max_evi.sat_img['min_evi']
-        ds['max_evi'] = vprm_pre.min_max_evi.sat_img['max_evi']
-        ds['th'] = vprm_pre.min_max_evi.sat_img['th']
-        ds['min_lswi'] =  vprm_pre.min_lswi.sat_img['min_lswi']
-        ds['max_lswi'] =  vprm_pre.max_lswi.sat_img['max_lswi']
-        flux_tower_keys = ['t2m', 'ssrd', 'ZL', 'FETCH_90',
-                          'NEE_VUT_REF', 'GPP_DT_VUT_REF', 'RECO_DT_VUT_REF']
+        ds["min_evi"] = vprm_pre.min_max_evi.sat_img["min_evi"]
+        ds["max_evi"] = vprm_pre.min_max_evi.sat_img["max_evi"]
+        ds["th"] = vprm_pre.min_max_evi.sat_img["th"]
+        ds["min_lswi"] = vprm_pre.min_lswi.sat_img["min_lswi"]
+        ds["max_lswi"] = vprm_pre.max_lswi.sat_img["max_lswi"]
+        flux_tower_keys = [
+            "t2m",
+            "ssrd",
+            "ZL",
+            "FETCH_90",
+            "NEE_VUT_REF",
+            "GPP_DT_VUT_REF",
+            "RECO_DT_VUT_REF",
+        ]
         for key in flux_tower_keys:
             ds[key] = xr.DataArray(
                 self.flux_tower_instance.flux_data[key].values,
-                dims=('datetime_utc',),
-                coords={'datetime_utc': self.flux_tower_instance.flux_data['datetime_utc']})
+                dims=("datetime_utc",),
+                coords={
+                    "datetime_utc": self.flux_tower_instance.flux_data["datetime_utc"]
+                },
+            )
         t0 = np.datetime64(vprm_pre.timestamp_start)
         ds = ds.assign_coords(
             days_since_t0=(
                 "datetime_utc",
-                ((ds.datetime_utc.data - t0) / np.timedelta64(1, "D")).astype(int)))
+                ((ds.datetime_utc.data - t0) / np.timedelta64(1, "D")).astype(int),
+            )
+        )
 
         # Only possible to calculate footprints under this condition
-        footprint_timestamps=ds['ZL'][ds['ZL']>0]['datetime_utc']
-        ffp_handler = FFP_footprint_manager(time_stamps=footprint_timestamps,
-                                            flux_tower_manager=self.flux_tower_instance, 
-                                            calculation_grid_side_length=1500,
-                                            calculation_grid_pixels_per_side=300)
-        km_handler = KM_footprint_manager(time_stamps=footprint_timestamps,
-                                          flux_tower_manager=self.flux_tower_instance, 
-                                          calculation_grid_side_length=1500,
-                                          calculation_grid_pixels_per_side=300)
+        footprint_timestamps = ds["ZL"][ds["ZL"] > 0]["datetime_utc"]
+        ffp_handler = FFP_footprint_manager(
+            time_stamps=footprint_timestamps,
+            flux_tower_manager=self.flux_tower_instance,
+            calculation_grid_side_length=1500,
+            calculation_grid_pixels_per_side=300,
+        )
+        km_handler = KM_footprint_manager(
+            time_stamps=footprint_timestamps,
+            flux_tower_manager=self.flux_tower_instance,
+            calculation_grid_side_length=1500,
+            calculation_grid_pixels_per_side=300,
+        )
 
         km_handler.make_calculation_grid()
         km_handler.calculate_footprints()
-        
+
         ffp_handler.make_calculation_grid()
         ffp_handler.calculate_footprints()
 
-        km_handler.regrid_calculation_grid_to_satellite_grid(handler.sat_img,
-                                                             footprint_regridder_path)
-        ffp_handler.regrid_calculation_grid_to_satellite_grid(handler.sat_img,
-                                                              footprint_regridder_path)
+        km_handler.regrid_calculation_grid_to_satellite_grid(
+            handler.sat_img, footprint_regridder_path
+        )
+        ffp_handler.regrid_calculation_grid_to_satellite_grid(
+            handler.sat_img, footprint_regridder_path
+        )
 
-        ds['km_footprint'] = km_handler.footprint_on_satellite_grid['footprint']
-        ds['ffp_footprint'] = ffp_handler.footprint_on_satellite_grid['footprint']
+        ds["km_footprint"] = km_handler.footprint_on_satellite_grid["footprint"]
+        ds["ffp_footprint"] = ffp_handler.footprint_on_satellite_grid["footprint"]
         if vprm_pre.land_cover_type is not None:
-            ds['land_cover_map'] = vprm_pre.land_cover_type.sat_img
+            ds["land_cover_map"] = vprm_pre.land_cover_type.sat_img
 
         era5_meteo_data = dict()
         for key in era5_meteo_data.keys():
             ds[key] = era5_meteo_data[key]
 
-        return 
+        return
 
     def _get_vprm_variables(
         self,
@@ -248,7 +273,6 @@ class vprm_base_model_footprint:
 
         era_keys = ["ssrd", "t2m"]
         era_keys.extend(add_era_variables)
-
 
     def make_vprm_predictions(
         self,

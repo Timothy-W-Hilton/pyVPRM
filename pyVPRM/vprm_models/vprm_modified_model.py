@@ -14,6 +14,7 @@ import itertools
 from scipy.optimize import curve_fit
 from loguru import logger
 
+
 class vprm_modified_model(vprm_base_model):
     """
     Base class for all meteorologies

@@ -44,6 +44,7 @@ crs_str = 'PROJCS["unnamed",\
             PARAMETER["false_northing",0], \
             UNIT["Meter",1]]'
 
+
 class VIIRS(earthdata):
     # Class to download and load VIIRS data
 
@@ -65,7 +66,9 @@ class VIIRS(earthdata):
         return
 
     def set_band_names(self):
-        logger.info("Trying to set reflectance bands assuming standard naming for VIIRS")
+        logger.info(
+            "Trying to set reflectance bands assuming standard naming for VIIRS"
+        )
         bands = []
         for k in list(self.sat_img.data_vars):
             if ("SurfReflect_I" not in k) & ("SurfReflect_M" not in k):
@@ -196,8 +199,8 @@ class VIIRS(earthdata):
         return
 
     def mask_water(self, bands=None):
-        print('Water Masking not yet implemented for VIIRS')
-        #Not yet implemented
+        print("Water Masking not yet implemented for VIIRS")
+        # Not yet implemented
         return
 
     def mask_snow(self, bands=None):

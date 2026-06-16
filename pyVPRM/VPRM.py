@@ -13,7 +13,7 @@ from pyVPRM.lib.functions import (
     do_kalman_smoothing,
     make_xesmf_grid,
     to_esmf_grid,
-    replace_inf_runs_ignore_nans
+    replace_inf_runs_ignore_nans,
 )
 from scipy.ndimage import uniform_filter
 from pyproj import Transformer
@@ -44,7 +44,12 @@ class vprm_preprocessor:
     """
 
     def __init__(
-        self, vprm_config_path, land_cover_map=None, verbose=False, n_cpus=1, flux_tower_instances=None
+        self,
+        vprm_config_path,
+        land_cover_map=None,
+        verbose=False,
+        n_cpus=1,
+        flux_tower_instances=None,
     ):
         """
         Initialize a class instance
@@ -72,7 +77,7 @@ class vprm_preprocessor:
         self.t2m = None
 
         # self.target_shape = None
-        
+
         self.buffer = dict()
         self.buffer["cur_lat"] = None
         self.buffer["cur_lon"] = None
@@ -106,7 +111,7 @@ class vprm_preprocessor:
         if self.flux_tower_instances is not None:
             self.lonlats = [i.get_lonlat() for i in flux_tower_instances]
         return
-    
+
     def to_wrf_output(
         self,
         out_grid,
@@ -281,12 +286,12 @@ class vprm_preprocessor:
             "evi_max": ds_t_max_evi,
             "evi_min": ds_t_min_evi,
         }
-        
-        veg_classes_def = 'VPRM class definition: '
+
+        veg_classes_def = "VPRM class definition: "
         for k in self.vprm_cfg.keys():
-            veg_classes_def += '{} {}, '.format(self.vprm_cfg[k]['vprm_class'], k)
+            veg_classes_def += "{} {}, ".format(self.vprm_cfg[k]["vprm_class"], k)
         veg_classes_def = veg_classes_def[:-2]
-        
+
         for key in ret_dict.keys():
             ret_dict[key] = ret_dict[key].assign_attrs(
                 title="VPRM input data for WRF: {}".format(key),
@@ -349,10 +354,10 @@ class vprm_preprocessor:
         if which_evi is not None:
             satellite_indices.append(which_evi)
         if add_ndvi:
-            satellite_indices.append('ndvi')
+            satellite_indices.append("ndvi")
         self.satellite_indices = satellite_indices
         bands_to_mask = []
-        bands = [b_nir, b_red, b_blue, b_swir, b_red_edge]  
+        bands = [b_nir, b_red, b_blue, b_swir, b_red_edge]
         for btm in bands:
             if btm is not None:
                 bands_to_mask.append(btm)
@@ -362,23 +367,23 @@ class vprm_preprocessor:
             else:
                 handler.mask_bad_pixels(bands_to_mask)
         for sat_ind in self.satellite_indices:
-            if sat_ind == 'ndvi':
-               handler.add_ndvi(nir=b_nir, red=b_red) 
-            elif sat_ind == 'evi':
-               handler.add_evi(nir=b_nir, red=b_red, blue=b_blue)        
-            elif sat_ind == 'lswi':
+            if sat_ind == "ndvi":
+                handler.add_ndvi(nir=b_nir, red=b_red)
+            elif sat_ind == "evi":
+                handler.add_evi(nir=b_nir, red=b_red, blue=b_blue)
+            elif sat_ind == "lswi":
                 handler.add_lswi(nir=b_nir, swir=b_swir)
-            elif sat_ind == 'evi2':
+            elif sat_ind == "evi2":
                 handler.add_evi2(nir=b_nir, red=b_red)
-            elif sat_ind == 'ndwi':
-                handler.add_ndwi(nir=b_nir, swir=b_red)  
-            elif sat_ind == 'ndre':
-                handler.add_ndre(nir=b_nir, red=b_red_edge)  
-            elif sat_ind == 'nirv':
+            elif sat_ind == "ndwi":
+                handler.add_ndwi(nir=b_nir, swir=b_red)
+            elif sat_ind == "ndre":
+                handler.add_ndre(nir=b_nir, red=b_red_edge)
+            elif sat_ind == "nirv":
                 handler.add_nirv(nir=b_nir, red=b_red)
             else:
-                print('No function implemented for {}'.format(sat_ind))
-            
+                print("No function implemented for {}".format(sat_ind))
+
         if timestamp_key is not None:
             handler.sat_img = handler.sat_img.rename({timestamp_key: "timestamps"})
 
@@ -454,7 +459,7 @@ class vprm_preprocessor:
                 x, y = t.transform(ll[0], ll[1])
                 x_ind = np.argmin(np.abs(x - xs))
                 y_ind = np.argmin(np.abs(y - ys))
-                arsz = 3 # Hard Coded. Means only 3 by 3 pixes around the lonlat location are smoothed
+                arsz = 3  # Hard Coded. Means only 3 by 3 pixes around the lonlat location are smoothed
                 for key in keys:
                     logger.info(key)
                     self.sat_imgs.sat_img[key][
@@ -479,13 +484,13 @@ class vprm_preprocessor:
             {"site_names": [i.get_site_name() for i in self.flux_tower_instances]}
         )
 
-    def sort_and_merge_by_timestamp(self, min_length_snow_period=21): 
+    def sort_and_merge_by_timestamp(self, min_length_snow_period=21):
         """
         Called after adding the satellite images with 'add_sat_img'. Sorts the satellite
         images by timestamp and merges everything to one satellite_data_manager.
 
             Parameters:
-            min_length_snow_period defines how long a period should be until gaps are 
+            min_length_snow_period defines how long a period should be until gaps are
             filled to stabilize lowess fits
             Returns:
                     None
@@ -500,13 +505,17 @@ class vprm_preprocessor:
                     x_time_y = prod
             self.prototype_satellite_manager = copy.deepcopy(biggest)
             keys = list(self.prototype_satellite_manager.sat_img.keys())
-            self.prototype_satellite_manager.sat_img = self.prototype_satellite_manager.sat_img.drop(keys)
+            self.prototype_satellite_manager.sat_img = (
+                self.prototype_satellite_manager.sat_img.drop(keys)
+            )
         #  for h in self.sat_imgs:
         #      h.sat_img = h.sat_img.rio.reproject_match(self.prototype_satellite_manager.sat_img, nodata=np.nan)
         else:
             self.prototype_satellite_manager = copy.deepcopy(self.sat_imgs[0])
             keys = list(self.prototype_satellite_manager.sat_img.keys())
-            self.prototype_satellite_manager.sat_img = self.prototype_satellite_manager.sat_img.drop(keys)
+            self.prototype_satellite_manager.sat_img = (
+                self.prototype_satellite_manager.sat_img.drop(keys)
+            )
         self.sat_imgs = satellite_data_manager(
             sat_img=xr.concat([k.sat_img for k in self.sat_imgs], "time")
         )
@@ -523,8 +532,8 @@ class vprm_preprocessor:
         )
         day_steps = [i.days for i in (self.timestamps - self.timestamp_start)]
         self.sat_imgs.sat_img = self.sat_imgs.sat_img.assign_coords({"time": day_steps})
-        self.prototype_satellite_manager.sat_img = self.prototype_satellite_manager.sat_img.assign_coords(
-            {"time": day_steps}
+        self.prototype_satellite_manager.sat_img = (
+            self.prototype_satellite_manager.sat_img.assign_coords({"time": day_steps})
         )
 
         if "timestamps" in list(self.sat_imgs.sat_img.keys()):
@@ -546,11 +555,13 @@ class vprm_preprocessor:
         self.time_key = "time"
 
         if min_length_snow_period is not None:
-            N = int(min_length_snow_period / np.diff(self.sat_imgs.sat_img['time']).mean())
+            N = int(
+                min_length_snow_period / np.diff(self.sat_imgs.sat_img["time"]).mean()
+            )
             for sat_ind in self.satellite_indices:
-                self.sat_imgs.sat_img[sat_ind] = replace_inf_runs_ignore_nans(self.sat_imgs.sat_img[sat_ind],
-                                                                            N = N,
-                                                                            time_dim = self.time_key)
+                self.sat_imgs.sat_img[sat_ind] = replace_inf_runs_ignore_nans(
+                    self.sat_imgs.sat_img[sat_ind], N=N, time_dim=self.time_key
+                )
         else:
             for sat_ind in self.satellite_indices:
                 da = self.sat_imgs.sat_img[sat_ind]
@@ -756,7 +767,7 @@ class vprm_preprocessor:
         self.min_max_evi = copy.deepcopy(self.prototype_satellite_manager)
         shortcut = self.sat_imgs.sat_img
         # if self.flux_tower_instances is None:
-        
+
         self.min_max_evi.sat_img["min_evi"] = shortcut["evi"].min(
             self.time_key, skipna=True
         )
@@ -773,15 +784,23 @@ class vprm_preprocessor:
         )
 
         th = self.min_max_evi.sat_img["th"]
-        
+
         lswi_masked = shortcut["lswi"].where(shortcut["evi"] > th)
-        
+
         self.min_lswi.sat_img["min_lswi"] = lswi_masked.min(self.time_key, skipna=True)
         self.max_lswi.sat_img["max_lswi"] = lswi_masked.max(self.time_key, skipna=True)
         return
 
-    def lowess(self, keys, lonlats=None, times=False, frac=0.25, it=3,
-               n_cpus=None, smooth_all=False):
+    def lowess(
+        self,
+        keys,
+        lonlats=None,
+        times=False,
+        frac=0.25,
+        it=3,
+        n_cpus=None,
+        smooth_all=False,
+    ):
         """
         Performs the lowess smoothing
 
@@ -825,7 +844,9 @@ class vprm_preprocessor:
             xvals = self.sat_imgs.sat_img["time"]
         logger.info("Lowess timestamps {}".format(xvals))
 
-        if (self.flux_tower_instances is not None) and (smooth_all is False):  # Is flux tower sites are given
+        if (self.flux_tower_instances is not None) and (
+            smooth_all is False
+        ):  # Is flux tower sites are given
             if "timestamps" in list(self.sat_imgs.sat_img.data_vars):
                 for key in keys:
                     self.sat_imgs.sat_img = self.sat_imgs.sat_img.assign(
@@ -941,10 +962,16 @@ class vprm_preprocessor:
         )
         return
 
-    def kalman(self, keys, times=None, 
-               transition_covariance=0.01,
-               observation_covariance=0.05,
-               lonlats=None, n_cpus=None, smooth_all=False):
+    def kalman(
+        self,
+        keys,
+        times=None,
+        transition_covariance=0.01,
+        observation_covariance=0.05,
+        lonlats=None,
+        n_cpus=None,
+        smooth_all=False,
+    ):
         """
         Performs the lowess smoothing
 
@@ -980,7 +1007,7 @@ class vprm_preprocessor:
             ]
         elif isinstance(times, str):
             if times == "daily":
-                xvals = np.arange(self.tot_num_days+1)
+                xvals = np.arange(self.tot_num_days + 1)
             else:
                 logger.info("{} is not a valid str for times".format(times))
                 return
@@ -988,7 +1015,9 @@ class vprm_preprocessor:
             xvals = self.sat_imgs.sat_img["time"]
         logger.info("Lowess timestamps {}".format(xvals))
 
-        if (self.flux_tower_instances is not None) and (smooth_all is False):  # Is flux tower sites are given
+        if (self.flux_tower_instances is not None) and (
+            smooth_all is False
+        ):  # Is flux tower sites are given
             if "timestamps" in list(self.sat_imgs.sat_img.data_vars):
                 for key in keys:
                     self.sat_imgs.sat_img = self.sat_imgs.sat_img.assign(
@@ -1096,9 +1125,11 @@ class vprm_preprocessor:
 
         self.time_key = "time_gap_filled"
         self.sat_imgs.sat_img = self.sat_imgs.sat_img.assign_coords(
-            {"time_gap_filled": list(np.arange(self.tot_num_days+1))}
+            {"time_gap_filled": list(np.arange(self.tot_num_days + 1))}
         )
-        self.sat_imgs.sat_img = self.sat_imgs.sat_img.sel({"time_gap_filled": list(xvals)})
+        self.sat_imgs.sat_img = self.sat_imgs.sat_img.sel(
+            {"time_gap_filled": list(xvals)}
+        )
         return
 
     def clip_values(self, key, min_val, max_val, to_nan=False):
@@ -1242,11 +1273,11 @@ class vprm_preprocessor:
         days_after_first_image = (
             datetime_utc - self.timestamp_start
         ).total_seconds() / (24 * 60 * 60)
-        # Calculate a list of time differences between the xarray time and the datetime_utc both with respect to timestamp_start. 
-        # Take the index (argmin) with smallest difference 
+        # Calculate a list of time differences between the xarray time and the datetime_utc both with respect to timestamp_start.
+        # Take the index (argmin) with smallest difference
         counter_new = np.argmin(
             np.abs(self.sat_imgs.sat_img[self.time_key].values - days_after_first_image)
-        ) 
+        )
         if (days_after_first_image < 0) | (
             days_after_first_image > self.sat_imgs.sat_img[self.time_key][-1]
         ):
@@ -1266,7 +1297,8 @@ class vprm_preprocessor:
         src_y = self.prototype_satellite_manager.sat_img.coords["y"].values
         X, Y = np.meshgrid(src_x, src_y)
         t = Transformer.from_crs(
-            self.prototype_satellite_manager.sat_img.rio.crs, "+proj=longlat +datum=WGS84"
+            self.prototype_satellite_manager.sat_img.rio.crs,
+            "+proj=longlat +datum=WGS84",
         )
         x_long, y_lat = t.transform(X, Y)
         self.empty_xr_lat_lon_grid = xr.Dataset(
@@ -1275,7 +1307,9 @@ class vprm_preprocessor:
                 "lat": (["y", "x"], y_lat, {"units": "degrees_north"}),
             }
         )
-        self.empty_xr_lat_lon_grid = self.empty_xr_lat_lon_grid.set_coords(["lon", "lat"])
+        self.empty_xr_lat_lon_grid = self.empty_xr_lat_lon_grid.set_coords(
+            ["lon", "lat"]
+        )
         return
 
     def save(self, save_path):
